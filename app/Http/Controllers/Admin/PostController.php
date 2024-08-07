@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
-
 use App\Models\Post;
 use App\Http\Controllers\Controller;
+use App\Models\Category;
+use App\Models\Technology;
 use App\Http\Requests\UpdatePostRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ class PostController extends Controller
      */
     public function index()
     {
-        $posts= Post::all();
+        $posts = Post::all();
         return view('admin.posts.index', compact('posts'));
     }
 
@@ -25,7 +25,9 @@ class PostController extends Controller
      */
     public function create()
     {
-        return view('admin.posts.create');
+        $categories = Category::all();
+        $technologies = Technology::all();
+        return view('admin.posts.create', compact('categories', 'technologies'));
     }
 
     /**
@@ -33,13 +35,13 @@ class PostController extends Controller
      */
     public function store(Request $request)
     {
+        $data = $request->all();
+        $data['author'] = Auth::user()->name;
+        $data['date'] = Carbon::now();
+        $newPost = Post::create($data);
+        $newPost->technologies()->sync($request->technologies);
 
-       $data= $request->all();
-       $data['author'] = Auth::user()->name;
-       $data['date'] = Carbon::now();
-       $newPost = Post::create($data);
-
-       return redirect()->route('admin.posts.show', $newPost);
+        return redirect()->route('admin.posts.show', $newPost);
     }
 
     /**
@@ -47,6 +49,7 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
+        $post = Post::with('technologies', 'category')->findOrFail($post->id);
         return view('admin.posts.show', compact('post'));
     }
 
@@ -55,7 +58,9 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
-        return view('admin.posts.edit', compact('post'));
+        $categories = Category::all();
+        $technologies = Technology::all();
+        return view('admin.posts.edit', compact('post', 'categories', 'technologies'));
     }
 
     /**
@@ -66,9 +71,10 @@ class PostController extends Controller
         $data = $request->validated();
         $data['author'] = Auth::user()->name;
         $data['date'] = Carbon::now();
-       $post->update($data);
+        $post->update($data);
+        $post->technologies()->sync($request->technologies);
 
-       return redirect()->route('admin.posts.show', $post);
+        return redirect()->route('admin.posts.show', $post);
     }
 
     /**
